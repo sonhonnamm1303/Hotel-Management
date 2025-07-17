@@ -18,6 +18,7 @@ import dal.RoomDAO;
 import jakarta.servlet.http.HttpSession;
 import java.sql.Date;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -91,7 +92,38 @@ public class Checkout extends HttpServlet {
         }
 
         if ("addNew".equals(service)) {
-            if (checkRoomConflict(request, response, session)) {
+            String[] roomNumbers = (String[]) session.getAttribute("roomNumbers");
+            String startDate = (String) session.getAttribute("startDate");
+            String endDate = (String) session.getAttribute("endDate");
+
+            if (roomNumbers == null || roomNumbers.length == 0 || startDate == null || endDate == null) {
+                request.setAttribute("errorMessage", "Thiếu thông tin đặt phòng. Vui lòng bắt đầu lại.");
+                request.getRequestDispatcher("/View/Receptionist/SearchRoom.jsp").forward(request, response);
+                return;
+            }
+
+            java.sql.Date startDateSql = java.sql.Date.valueOf(startDate);
+            java.sql.Date endDateSql = java.sql.Date.valueOf(endDate);
+
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
+            String todayStr = sdf.format(new java.util.Date());
+            if (startDate.compareTo(todayStr) < 0) {
+                request.setAttribute("errorMessage", "Ngày nhận phòng phải từ hôm nay trở đi.");
+                request.getRequestDispatcher("/View/Receptionist/SearchRoom.jsp").forward(request, response);
+                return;
+            }
+            if (endDateSql.compareTo(startDateSql) <= 0) {
+                request.setAttribute("errorMessage", "Ngày trả phòng phải sau ngày nhận phòng.");
+                request.getRequestDispatcher("/View/Receptionist/SearchRoom.jsp").forward(request, response);
+                return;
+            }
+
+            RoomDAO roomDAO = RoomDAO.getInstance();
+            List<String> conflictRooms = roomDAO.getUnavailableRooms(List.of(roomNumbers), startDateSql, endDateSql);
+            if (!conflictRooms.isEmpty()) {
+                request.setAttribute("errorMessage", "Các phòng sau đã bị đặt trong thời gian đã chọn: " + String.join(", ", conflictRooms));
+                session.removeAttribute("selectedRooms");
+                request.getRequestDispatcher("/View/Receptionist/SearchRoom.jsp").forward(request, response);
                 return;
             }
 
@@ -177,7 +209,38 @@ public class Checkout extends HttpServlet {
         }
 
         if ("addExisted".equals(service)) {
-            if (checkRoomConflict(request, response, session)) {
+            String[] roomNumbers = (String[]) session.getAttribute("roomNumbers");
+            String startDate = (String) session.getAttribute("startDate");
+            String endDate = (String) session.getAttribute("endDate");
+
+            if (roomNumbers == null || roomNumbers.length == 0 || startDate == null || endDate == null) {
+                request.setAttribute("errorMessage", "Thiếu thông tin đặt phòng. Vui lòng bắt đầu lại.");
+                request.getRequestDispatcher("/View/Receptionist/SearchRoom.jsp").forward(request, response);
+                return;
+            }
+
+            java.sql.Date startDateSql = java.sql.Date.valueOf(startDate);
+            java.sql.Date endDateSql = java.sql.Date.valueOf(endDate);
+
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
+            String todayStr = sdf.format(new java.util.Date());
+            if (startDate.compareTo(todayStr) < 0) {
+                request.setAttribute("errorMessage", "Ngày nhận phòng phải từ hôm nay trở đi.");
+                request.getRequestDispatcher("/View/Receptionist/SearchRoom.jsp").forward(request, response);
+                return;
+            }
+            if (endDateSql.compareTo(startDateSql) <= 0) {
+                request.setAttribute("errorMessage", "Ngày trả phòng phải sau ngày nhận phòng.");
+                request.getRequestDispatcher("/View/Receptionist/SearchRoom.jsp").forward(request, response);
+                return;
+            }
+
+            RoomDAO roomDAO = RoomDAO.getInstance();
+            List<String> conflictRooms = roomDAO.getUnavailableRooms(List.of(roomNumbers), startDateSql, endDateSql);
+            if (!conflictRooms.isEmpty()) {
+                request.setAttribute("errorMessage", "Các phòng sau đã bị đặt trong thời gian đã chọn: " + String.join(", ", conflictRooms));
+                session.removeAttribute("selectedRooms");
+                request.getRequestDispatcher("/View/Receptionist/SearchRoom.jsp").forward(request, response);
                 return;
             }
             String emailSearch = request.getParameter("emailSearch");
@@ -494,30 +557,30 @@ public class Checkout extends HttpServlet {
 //                    session.removeAttribute("totalPrice");
     }
 
-    private boolean checkRoomConflict(HttpServletRequest request, HttpServletResponse response, HttpSession session)
-            throws ServletException, IOException {
-
-        String[] roomNumbers = (String[]) session.getAttribute("roomNumbers");
-        String startDate = (String) session.getAttribute("startDate");
-        String endDate = (String) session.getAttribute("endDate");
-
-        if (roomNumbers != null && startDate != null && endDate != null) {
-            java.sql.Date startDateSql = java.sql.Date.valueOf(startDate);
-            java.sql.Date endDateSql = java.sql.Date.valueOf(endDate);
-
-            List<String> conflictRooms = RoomDAO.getInstance().getUnavailableRooms(
-                    java.util.Arrays.asList(roomNumbers), startDateSql, endDateSql
-            );
-
-            if (!conflictRooms.isEmpty()) {
-                request.setAttribute("roomConflictError", "Phòng đã bị đặt: " + String.join(", ", conflictRooms));
-                session.removeAttribute("selectedRooms");
-                request.getRequestDispatcher("/View/Receptionist/SearchRoom.jsp").forward(request, response);
-                return true;
-            }
-        }
-        return false;
-    }
+//    private boolean checkRoomConflict(HttpServletRequest request, HttpServletResponse response, HttpSession session)
+//            throws ServletException, IOException {
+//
+//        String[] roomNumbers = (String[]) session.getAttribute("roomNumbers");
+//        String startDate = (String) session.getAttribute("startDate");
+//        String endDate = (String) session.getAttribute("endDate");
+//
+//        if (roomNumbers != null && startDate != null && endDate != null) {
+//            java.sql.Date startDateSql = java.sql.Date.valueOf(startDate);
+//            java.sql.Date endDateSql = java.sql.Date.valueOf(endDate);
+//
+//            List<String> conflictRooms = RoomDAO.getInstance().getUnavailableRooms(
+//                    java.util.Arrays.asList(roomNumbers), startDateSql, endDateSql
+//            );
+//
+//            if (!conflictRooms.isEmpty()) {
+//                request.setAttribute("roomConflictError", "Phòng đã bị đặt: " + String.join(", ", conflictRooms));
+//                session.removeAttribute("selectedRooms");
+//                request.getRequestDispatcher("/View/Receptionist/SearchRoom.jsp").forward(request, response);
+//                return true;
+//            }
+//        }
+//        return false;
+//    }
 
     // <editor-fold defaultstate="collapsed" desc="HttpServlet methods. Click on the + sign on the left to edit the code.">
     /**
